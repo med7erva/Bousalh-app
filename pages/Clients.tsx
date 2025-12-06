@@ -9,9 +9,10 @@ import { CURRENCY } from '../constants';
 import AIInsightAlert from '../components/AIInsightAlert';
 
 // Union type for the history list
+// Changed discriminator to 'docType' to avoid conflict with FinancialTransaction.type
 type HistoryItem = 
-  | (Invoice & { type: 'invoice' })
-  | (FinancialTransaction & { type: 'transaction' });
+  | (Invoice & { docType: 'invoice' })
+  | (FinancialTransaction & { docType: 'transaction' });
 
 const Clients: React.FC = () => {
     const { user } = useAuth();
@@ -105,13 +106,13 @@ const Clients: React.FC = () => {
         const allInvoices = await getInvoices(user.id);
         const clientInvoices = allInvoices.filter(inv => 
             inv.customerName.trim().toLowerCase() === client.name.trim().toLowerCase()
-        ).map(inv => ({ ...inv, type: 'invoice' as const }));
+        ).map(inv => ({ ...inv, docType: 'invoice' as const }));
 
         // 2. Fetch Transactions (Receipts/Payments)
         const allTransactions = await getTransactions(user.id);
         const clientTransactions = allTransactions.filter(tx => 
             tx.entityType === 'Client' && tx.entityId === client.id
-        ).map(tx => ({ ...tx, type: 'transaction' as const }));
+        ).map(tx => ({ ...tx, docType: 'transaction' as const }));
 
         // 3. Merge and Sort by Date Descending
         const combined = [...clientInvoices, ...clientTransactions].sort(
@@ -310,17 +311,19 @@ const Clients: React.FC = () => {
                                         <tr><td colSpan={5} className="p-8 text-center text-gray-400">لا توجد حركات مسجلة لهذا العميل</td></tr>
                                     ) : (
                                         historyItems.map(item => {
-                                            const isInvoice = item.type === 'invoice';
+                                            const isInvoice = item.docType === 'invoice';
                                             
                                             // Determine Amount placement
                                             let debit = 0; // عليه (Sales / Loans given)
                                             let credit = 0; // له (Payments made)
 
                                             if (isInvoice) {
-                                                debit = (item as Invoice).total;
-                                                credit = (item as Invoice).paidAmount; // Immediate payment
+                                                // Item is Invoice
+                                                debit = item.total;
+                                                credit = item.paidAmount; // Immediate payment
                                             } else {
-                                                const tx = item as FinancialTransaction;
+                                                // Item is FinancialTransaction
+                                                const tx = item;
                                                 if (tx.type === 'in') {
                                                     // Receipt (قبض) = Client paying us = Credit
                                                     credit = tx.amount;
@@ -341,7 +344,7 @@ const Clients: React.FC = () => {
                                                                 <FileText size={12} /> فاتورة
                                                             </span>
                                                         ) : (
-                                                            (item as FinancialTransaction).type === 'in' ? 
+                                                            item.type === 'in' ? 
                                                             <span className="flex items-center gap-1 text-xs font-bold bg-emerald-50 text-emerald-700 px-2 py-1 rounded w-fit">
                                                                 <ArrowDownLeft size={12} /> سند قبض
                                                             </span> :
@@ -353,10 +356,10 @@ const Clients: React.FC = () => {
                                                     <td className="px-4 py-3 text-sm text-gray-700">
                                                         {isInvoice ? (
                                                             <span className="truncate block max-w-[200px]">
-                                                                {(item as Invoice).items.map(i => i.productName).join(', ')}
+                                                                {item.items.map(i => i.productName).join(', ')}
                                                             </span>
                                                         ) : (
-                                                            (item as FinancialTransaction).description
+                                                            item.description
                                                         )}
                                                         <div className="text-xs text-gray-400 font-mono mt-0.5">{item.id.slice(-8)}</div>
                                                     </td>

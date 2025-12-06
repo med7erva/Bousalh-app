@@ -9,9 +9,10 @@ import { CURRENCY } from '../constants';
 import AIInsightAlert from '../components/AIInsightAlert';
 
 // Union type for the history list
+// Changed discriminator to 'docType' to avoid conflict with FinancialTransaction.type
 type HistoryItem = 
-  | (Purchase & { type: 'purchase' })
-  | (FinancialTransaction & { type: 'transaction' });
+  | (Purchase & { docType: 'purchase' })
+  | (FinancialTransaction & { docType: 'transaction' });
 
 const Suppliers: React.FC = () => {
     const { user } = useAuth();
@@ -112,13 +113,13 @@ const Suppliers: React.FC = () => {
         // 1. Fetch Purchases
         const allPurchases = await getPurchases(user.id);
         const supplierPurchases = allPurchases.filter(p => p.supplierId === supplier.id)
-            .map(p => ({ ...p, type: 'purchase' as const }));
+            .map(p => ({ ...p, docType: 'purchase' as const }));
 
         // 2. Fetch Transactions (Payments/Receipts)
         const allTransactions = await getTransactions(user.id);
         const supplierTransactions = allTransactions.filter(tx => 
             tx.entityType === 'Supplier' && tx.entityId === supplier.id
-        ).map(tx => ({ ...tx, type: 'transaction' as const }));
+        ).map(tx => ({ ...tx, docType: 'transaction' as const }));
 
         // 3. Merge and Sort
         const combined = [...supplierPurchases, ...supplierTransactions].sort(
@@ -331,16 +332,17 @@ const Suppliers: React.FC = () => {
                                         <tr><td colSpan={5} className="p-8 text-center text-gray-400">لا توجد عمليات مسجلة مع هذا المورد</td></tr>
                                     ) : (
                                         historyItems.map(item => {
-                                            const isPurchase = item.type === 'purchase';
+                                            const isPurchase = item.docType === 'purchase';
                                             let credit = 0; // له (Purchases we made on credit)
                                             let debit = 0; // عليه (Payments we made)
 
                                             if (isPurchase) {
-                                                const pur = item as Purchase;
-                                                credit = pur.totalCost;
-                                                debit = pur.paidAmount;
+                                                // Item is Purchase
+                                                credit = item.totalCost;
+                                                debit = item.paidAmount;
                                             } else {
-                                                const tx = item as FinancialTransaction;
+                                                // Item is FinancialTransaction
+                                                const tx = item;
                                                 if (tx.type === 'out') {
                                                     // Out from us to Supplier = Payment = Debit
                                                     debit = tx.amount;
@@ -361,7 +363,7 @@ const Suppliers: React.FC = () => {
                                                                 <Truck size={12} /> فاتورة شراء
                                                             </span>
                                                         ) : (
-                                                            (item as FinancialTransaction).type === 'out' ? 
+                                                            item.type === 'out' ? 
                                                             <span className="flex items-center gap-1 text-xs font-bold bg-red-50 text-red-700 px-2 py-1 rounded w-fit">
                                                                 <ArrowUpRight size={12} /> سند صرف
                                                             </span> :
@@ -373,9 +375,9 @@ const Suppliers: React.FC = () => {
                                                     <td className="px-4 py-3 text-sm text-gray-700">
                                                         {isPurchase ? (
                                                              <span className="truncate block max-w-[200px]">
-                                                                {(item as Purchase).items.length} منتجات
+                                                                {item.items.length} منتجات
                                                             </span>
-                                                        ) : (item as FinancialTransaction).description}
+                                                        ) : item.description}
                                                          <div className="text-xs text-gray-400 font-mono mt-0.5">{item.id.slice(-8)}</div>
                                                     </td>
                                                     <td className="px-4 py-3 font-bold text-gray-800">

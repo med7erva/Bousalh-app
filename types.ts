@@ -1,6 +1,17 @@
 
 declare var html2pdf: any;
 
+// Support for import.meta.env
+interface ImportMetaEnv {
+  readonly VITE_SUPABASE_URL: string;
+  readonly VITE_SUPABASE_ANON_KEY: string;
+  readonly VITE_API_KEY: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 export interface User {
   id: string;
   name: string;

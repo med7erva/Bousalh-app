@@ -2,7 +2,23 @@
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { Product, Invoice, Client, Expense, Supplier } from "../types";
 
-const apiKey = process.env.API_KEY || '';
+// Safe environment variable accessor
+const getEnv = (key: string): string => {
+  try {
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+      return (import.meta as any).env[key] || '';
+    }
+  } catch (e) {}
+  try {
+    if (typeof process !== 'undefined' && process.env) {
+      return process.env[key] || '';
+    }
+  } catch (e) {}
+  return '';
+};
+
+// Check for VITE_API_KEY (Vite standard) or API_KEY (Node standard)
+const apiKey = getEnv('VITE_API_KEY') || getEnv('API_KEY');
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 const MODEL_NAME = 'gemini-2.5-flash';
 
