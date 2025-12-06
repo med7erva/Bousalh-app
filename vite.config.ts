@@ -5,14 +5,11 @@ export default defineConfig({
   plugins: [react()],
   build: {
     outDir: 'dist',
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1600,
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['lucide-react', 'recharts'],
-          supabase: ['@supabase/supabase-js'],
-          ai: ['@google/genai']
+          vendor: ['react', 'react-dom', 'react-router-dom', '@supabase/supabase-js', 'recharts', 'lucide-react']
         }
       }
     }
