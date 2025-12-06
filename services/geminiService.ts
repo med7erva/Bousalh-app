@@ -1,6 +1,5 @@
-
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
-import { Product, Invoice, Client, Expense, Supplier } from "../types";
+import { GoogleGenAI } from "@google/genai";
+import { Product, Client, Expense, Supplier } from "../types";
 
 // Safe environment variable accessor
 const getEnv = (key: string): string => {

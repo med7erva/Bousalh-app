@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import { Product, Invoice, SaleItem, User, Client, Expense, Purchase, Supplier, PurchaseItem, PaymentMethod, Employee, ExpenseCategory, FinancialTransaction, ProductCategory } from '../types';
 import { SEED_PRODUCTS, SEED_PAYMENT_METHODS } from '../constants';
@@ -57,6 +56,9 @@ export const registerUser = async (user: Omit<User, 'id' | 'createdAt' | 'email'
 };
 
 export const loginUser = async (phone: string, password: string): Promise<User> => {
+    // Force sign out first to ensure clean state and avoid 'Invalid Refresh Token'
+    await supabase.auth.signOut();
+
     const sanitizedPhone = phone.replace(/\D/g, '');
     const pseudoEmail = `${sanitizedPhone}@bousla.app`;
 
@@ -299,7 +301,7 @@ export const createInvoice = async (userId: string, items: SaleItem[], total: nu
 
 export const deleteInvoice = async (invoiceId: string) => {
     // 1. Get Invoice Data
-    const { data: inv, error } = await supabase.from('invoices').select('*').eq('id', invoiceId).single();
+    const { data: inv, error } = await supabase.from('invoices').select('*').eq('id', invoiceId).maybeSingle();
     if (error || !inv) throw new Error("الفاتورة غير موجودة");
 
     // 2. Restore Stock
@@ -307,7 +309,7 @@ export const deleteInvoice = async (invoiceId: string) => {
         for (const item of inv.items) {
             if (item.productId && !item.productId.startsWith('custom-')) {
                  // Get current stock
-                 const { data: prod } = await supabase.from('products').select('stock').eq('id', item.productId).single();
+                 const { data: prod } = await supabase.from('products').select('stock').eq('id', item.productId).maybeSingle();
                  if (prod) {
                      // Add quantity back
                      await supabase.from('products').update({ stock: prod.stock + item.quantity }).eq('id', item.productId);
@@ -319,7 +321,7 @@ export const deleteInvoice = async (invoiceId: string) => {
     // 3. Reverse Client Debt (If it was a credit sale)
     if (inv.remaining_amount > 0) {
         // Try to find client by name
-        const { data: client } = await supabase.from('clients').select('*').ilike('name', inv.customer_name).limit(1).single();
+        const { data: client } = await supabase.from('clients').select('*').ilike('name', inv.customer_name).limit(1).maybeSingle();
         if (client) {
             const newDebt = Math.max(0, Number(client.debt) - Number(inv.remaining_amount));
             await supabase.from('clients').update({ debt: newDebt }).eq('id', client.id);
@@ -328,7 +330,7 @@ export const deleteInvoice = async (invoiceId: string) => {
 
     // 4. Reverse Wallet Balance (If money was paid)
     if (inv.paid_amount > 0 && inv.payment_method_id) {
-        const { data: pm } = await supabase.from('payment_methods').select('balance').eq('id', inv.payment_method_id).single();
+        const { data: pm } = await supabase.from('payment_methods').select('balance').eq('id', inv.payment_method_id).maybeSingle();
         if (pm) {
             const newBalance = Number(pm.balance) - Number(inv.paid_amount);
             await supabase.from('payment_methods').update({ balance: newBalance }).eq('id', inv.payment_method_id);
